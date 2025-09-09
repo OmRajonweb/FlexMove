@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {InteractiveMap} from "@/components/interactive-map";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,10 +51,13 @@ import {
   Shield,
   User,
   Zap,
+  RefreshCw,
+  MessageSquare,
+  Settings,
+  AlertCircle,
+  Check
 } from "lucide-react";
 import Image from "next/image";
-
-import { InteractiveMap } from "@/components/interactive-map";
 import { AnalyticsCharts } from "@/components/analytics-charts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, BarChart, Line, LineChart, Pie, PieChart, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend as RLegend, Cell } from "recharts";
@@ -83,7 +88,13 @@ interface DisruptionAlert {
   type: string;
   description: string;
   delay: string;
+  status: 'active' | 'in-progress' | 'monitoring' | 'resolved' | 'acknowledged' | 'escalated';
+  severity: 'low' | 'medium' | 'high';
+  location: string;
+  timestamp: string;
   suggestions: string[];
+  resolvedAt?: string;
+  escalatedAt?: string;
 }
 
 export default function FlexMovePage() {
@@ -921,46 +932,49 @@ export default function FlexMovePage() {
                       Select Your Role
                     </Label>
                     <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setRole("supplier")}
-                        className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                          role === "supplier"
-                            ? "border-emerald-400 bg-emerald-400/10 text-white"
-                            : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
-                        }`}
-                        aria-pressed={role === "supplier"}
-                      >
-                        <Package className="h-4 w-4" />
-                        Supplier
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRole("transporter")}
-                        className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                          role === "transporter"
-                            ? "border-emerald-400 bg-emerald-400/10 text-white"
-                            : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
-                        }`}
-                        aria-pressed={role === "transporter"}
-                      >
-                        <Truck className="h-4 w-4" />
-                        Transporter
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRole("customer")}
-                        className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                          role === "customer"
-                            ? "border-emerald-400 bg-emerald-400/10 text-white"
-                            : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
-                        }`}
-                        aria-pressed={role === "customer"}
-                      >
-                        <MapPin className="h-4 w-4" />
-                        Customer
-                      </button>
-                      </div>
+  <button
+    type="button"
+    onClick={() => setRole("supplier")}
+    className={`flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 rounded-md border px-3 py-2 text-sm transition-transform transform ${
+      role === "supplier"
+        ? "border-emerald-400 bg-emerald-400/10 text-white"
+        : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95"
+    }`}
+    aria-pressed={role === "supplier"}
+  >
+    <Package className="h-4 w-4" />
+    Supplier
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setRole("transporter")}
+    className={`flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 via-teal-600 to-cyan-700 rounded-md border px-3 py-2 text-sm transition-transform transform ${
+      role === "transporter"
+        ? "border-emerald-400 bg-emerald-400/10 text-white"
+        : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95"
+    }`}
+    aria-pressed={role === "transporter"}
+  >
+    <Truck className="h-4 w-4" />
+    Transporter
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setRole("customer")}
+    className={`flex items-center justify-center gap-2 rounded-md border bg-gradient-to-r from-purple-600 via-pink-600 to-rose-700 px-3 py-2 text-sm transition-transform transform ${
+      role === "customer"
+        ? "border-emerald-400 bg-emerald-400/10 text-white"
+        : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95"
+    }`}
+    aria-pressed={role === "customer"}
+  >
+    <MapPin className="h-4 w-4" />
+    Customer
+  </button>
+</div>
+
               </div>
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 text-white/80 text-sm select-none">
@@ -1169,8 +1183,7 @@ export default function FlexMovePage() {
               priority: '',
               mode: ''
             });
-          }}
-        />
+          } }        />
       )}
 
       {/* Reroute Dialog */}
@@ -1213,6 +1226,7 @@ export default function FlexMovePage() {
 }
 
 import { CreateShipmentForm } from "@/components/create-shipment-form";
+import { Header } from "@radix-ui/react-accordion";
 
 // Reroute Dialog Component
 function RerouteDialog({
@@ -1552,7 +1566,7 @@ function SupplierDashboard({
   onDisruptionAction, 
   onRerouteRequest,
   shipments = [], 
-  disruptions = [] 
+  disruptions: propDisruptions = [] 
 }: {
   onCreateShipment: () => void;
   onDisruptionAction: (id: string, action: string) => void;
@@ -1605,35 +1619,158 @@ function SupplierDashboard({
 
   // Supplier analytics datasets
   const supplierModeSplit = [
-    { name: "Truck", value: 48, color: "#22c55e" },
-    { name: "Ship", value: 22, color: "#0ea5e9" },
-    { name: "Air", value: 18, color: "#a78bfa" },
-    { name: "EV", value: 12, color: "#84cc16" },
-  ];
-  const supplierMonthlyCosts = [
-    { month: "Jan", cost: 12.1 },
-    { month: "Feb", cost: 11.3 },
-    { month: "Mar", cost: 10.7 },
-    { month: "Apr", cost: 9.8 },
-    { month: "May", cost: 9.2 },
-    { month: "Jun", cost: 8.6 },
-  ];
-  const supplierOnTimeSeries = [
-    { month: "Jan", rate: 88 },
-    { month: "Feb", rate: 89 },
-    { month: "Mar", rate: 91 },
-    { month: "Apr", rate: 92 },
-    { month: "May", rate: 94 },
-    { month: "Jun", rate: 95 },
+    { name: "Truck", value: 48, color: "#3b82f6" },
+    { name: "Ship", value: 22, color: "#14b8a6" },
+    { name: "Air", value: 18, color: "#8b5cf6" },
+    { name: "EV", value: 12, color: "#22c55e" },
   ];
 
+  const supplierMonthlyCosts = [
+    { month: "Jan", cost: 12.1, carbon: 8.5 },
+    { month: "Feb", cost: 11.3, carbon: 8.1 },
+    { month: "Mar", cost: 10.7, carbon: 7.9 },
+    { month: "Apr", cost: 9.8, carbon: 7.2 },
+    { month: "May", cost: 9.2, carbon: 6.8 },
+    { month: "Jun", cost: 8.6, carbon: 6.5 },
+  ];
+
+  const supplierOnTimeSeries = [
+    { month: "Jan", rate: 88, disruptions: 12 },
+    { month: "Feb", rate: 89, disruptions: 10 },
+    { month: "Mar", rate: 91, disruptions: 8 },
+    { month: "Apr", rate: 92, disruptions: 7 },
+    { month: "May", rate: 94, disruptions: 5 },
+    { month: "Jun", rate: 95, disruptions: 4 },
+  ];
+  
+  const costBreakdownData = [
+    { name: 'Fuel', value: 40, color: '#ef4444' },
+    { name: 'Labor', value: 30, color: '#f97316' },
+    { name: 'Maintenance', value: 15, color: '#eab308' },
+    { name: 'Overhead', value: 10, color: '#84cc16' },
+    { name: 'Fees', value: 5, color: '#14b8a6' },
+  ];
+  
+  const carrierPerformanceData = [
+    { name: 'FastTrack', onTime: 95, cost: 4.2, rating: 4.8 },
+    { name: 'Ocean Express', onTime: 92, cost: 3.8, rating: 4.6 },
+    { name: 'Sky Cargo', onTime: 98, cost: 5.5, rating: 4.9 },
+    { name: 'Green Transport', onTime: 94, cost: 4.0, rating: 4.7 },
+  ];
+
+  // State for disruptions with local management
+  const [localDisruptions, setLocalDisruptions] = useState<DisruptionAlert[]>([
+    {
+      id: 'DISP-001',
+      shipmentId: 'SHIP-2023-0456',
+      type: 'Severe Weather Alert',
+      description: 'Heavy snowstorm causing delays on I-80 in Wyoming',
+      delay: '12-24 hours',
+      status: 'active',
+      severity: 'high',
+      location: 'I-80, WY',
+      timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago
+      suggestions: ['Reroute shipment', 'Delay delivery', 'Contact customer']
+    },
+    {
+      id: 'DISP-002',
+      shipmentId: 'SHIP-2023-0457',
+      type: 'Mechanical Failure',
+      description: 'Truck breakdown - waiting for repair service',
+      delay: '6-8 hours',
+      status: 'in-progress',
+      severity: 'medium',
+      location: 'Denver, CO',
+      timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), // 1 hour ago
+      suggestions: ['Arrange backup vehicle', 'Update ETA', 'Contact repair service']
+    },
+    {
+      id: 'DISP-003',
+      shipmentId: 'SHIP-2023-0458',
+      type: 'Port Congestion',
+      description: 'Unloading delays at Port of Los Angeles',
+      delay: '24-48 hours',
+      status: 'monitoring',
+      severity: 'high',
+      location: 'Los Angeles, CA',
+      timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), // 4 hours ago
+      suggestions: ['Reroute to alternate port', 'Update customer', 'Monitor situation']
+    },
+    ...propDisruptions // Include any disruptions passed as props
+  ]);
+
   const handleDisruptionAction = (disruptionId: string, action: string) => {
-    onDisruptionAction(disruptionId, action);
+    // Call the parent handler if provided
+    if (onDisruptionAction) {
+      onDisruptionAction(disruptionId, action);
+    }
+    
+    // Update local state
+    setLocalDisruptions(currentDisruptions => {
+      // If resolving, filter out the resolved disruption
+      if (action === 'resolve') {
+        return currentDisruptions.filter(d => d.id !== disruptionId);
+      }
+      
+      // For other actions, update the disruption
+      return currentDisruptions.map(disruption => {
+        if (disruption.id === disruptionId) {
+          // Handle different actions
+          switch(action) {
+            case 'acknowledge':
+              return { ...disruption, status: 'acknowledged' };
+            case 'escalate':
+              return { ...disruption, status: 'escalated', escalatedAt: new Date().toISOString() };
+            case 'customer_updated':
+              // In a real app, you might add a property like lastCustomerUpdate
+              return disruption;
+            default:
+              return disruption;
+          }
+        }
+        return disruption;
+      });
+    });
+  };
+
+  const handleReroute = (disruption: DisruptionAlert) => {
+    if (onRerouteRequest) {
+      onRerouteRequest(disruption);
+    }
+    // Show success message or update UI
+    console.log(`Rerouting shipment ${disruption.shipmentId}...`);
+  };
+
+  const handleUpdateCustomer = (disruption: DisruptionAlert) => {
+    // In a real app, this would open a customer communication interface
+    console.log(`Updating customer about shipment ${disruption.shipmentId}...`);
+    handleDisruptionAction(disruption.id, 'customer_updated');
+  };
+
+  // Custom label renderer for Pie Charts
+  const RADIAN = Math.PI / 180;
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
+    const radius = outerRadius + 30; // space for the label
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="currentColor"
+        className="text-xs"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+      >
+        {`${name} (${(percent * 100).toFixed(0)}%)`}
+      </text>
+    );
   };
 
   return (
     <div className="space-y-6">
-      {/* Enhanced Header with Gradient Background */}
+      {/* Main Content */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 p-8 text-white">
         <div className="absolute inset-0 bg-black/20"></div>
         <div className="relative z-10">
@@ -1652,7 +1789,7 @@ function SupplierDashboard({
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => setShowAnalytics(!showAnalytics)}
+                onClick={() => setActiveTab("analytics")}
                 className="bg-white/10 hover:bg-white/20 text-white border-white/30 backdrop-blur-sm"
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
@@ -1666,7 +1803,7 @@ function SupplierDashboard({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6 bg-gradient-to-r from-slate-50 to-slate-100 p-1 rounded-lg">
+        <TabsList className="grid w-full grid-cols-5 mb-6 bg-gradient-to-r from-slate-50 to-slate-100 p-1 rounded-lg">
           <TabsTrigger 
             value="overview" 
             className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-600 font-semibold transition-all duration-200"
@@ -1682,6 +1819,18 @@ function SupplierDashboard({
             Operations
           </TabsTrigger>
           <TabsTrigger 
+            value="disruptions" 
+            className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-red-600 font-semibold transition-all duration-200 relative"
+          >
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Disruptions
+            {localDisruptions.length > 0 && (
+              <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                {localDisruptions.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger 
             value="analytics" 
             className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-green-600 font-semibold transition-all duration-200"
           >
@@ -1692,81 +1841,11 @@ function SupplierDashboard({
             value="settings" 
             className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-orange-600 font-semibold transition-all duration-200"
           >
-            <Shield className="h-4 w-4 mr-2" />
+            <Settings className="h-4 w-4 mr-2" />
             Settings
           </TabsTrigger>
       </TabsList>
       <TabsContent value="overview" className="space-y-6">
-          {/* Enhanced Disruption Alerts */}
-      {disruptions.length > 0 && (
-        <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
-                <h3 className="text-lg font-semibold text-red-700">Active Disruptions</h3>
-                <Badge variant="destructive" className="ml-2">{disruptions.length}</Badge>
-              </div>
-          {disruptions.map((disruption) => (
-                <Alert key={disruption.id} className="border-red-200 bg-gradient-to-r from-red-50 to-orange-50 shadow-lg">
-                  <AlertTriangle className="h-4 w-4 text-red-500" />
-              <AlertDescription>
-                <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-semibold text-red-800 mb-1">{disruption.description}</div>
-                        <div className="text-sm text-red-600 mb-3">
-                          <span className="font-medium">Shipment:</span> {disruption.shipmentId} • 
-                          <span className="font-medium ml-2">Delay:</span> {disruption.delay}
-                    </div>
-                        <div className="flex flex-wrap gap-2">
-                          {disruption.suggestions.map((suggestion, index) => (
-                            <Badge key={index} variant="outline" className="text-xs bg-white/50 border-red-200 text-red-700">
-                              {suggestion}
-                            </Badge>
-                          ))}
-                  </div>
-                      </div>
-                      <div className="flex gap-2 ml-4">
-                    <Select
-                      onValueChange={(value) =>
-                        handleDisruptionAction(disruption.id, value)
-                      }
-                    >
-                          <SelectTrigger className="w-48 bg-white border-red-200 focus:border-red-400">
-                        <SelectValue placeholder="Choose action" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {disruption.suggestions.map((suggestion, index) => (
-                          <SelectItem key={index} value={suggestion}>
-                            {suggestion}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="sm"
-                      onClick={() => onRerouteRequest(disruption)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
-                    >
-                      <MapPin className="h-4 w-4 mr-1" />
-                      Reroute
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        handleDisruptionAction(disruption.id, "approve")
-                      }
-                          className="bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
-                    >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                      Approve
-                    </Button>
-                  </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          ))}
-        </div>
-      )}
-
           {/* Enhanced Stats Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -2054,7 +2133,7 @@ function SupplierDashboard({
       <div className="grid gap-6 md:grid-cols-2">
             <Card className="shadow-lg border-0 bg-gradient-to-br from-orange-50 to-red-50">
               <CardHeader className="bg-gradient-to-r from-orange-100 to-red-100 rounded-t-lg">
-                <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <CardTitle className="text-xl font-bold text-orange-800 flex items-center gap-2">
                   <MapPin className="h-5 w-5 text-orange-600" />
                   Route Performance
                 </CardTitle>
@@ -2092,7 +2171,7 @@ function SupplierDashboard({
 
             <Card className="shadow-lg border-0 bg-gradient-to-br from-indigo-50 to-purple-50">
               <CardHeader className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-t-lg">
-                <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
                   <Users className="h-5 w-5 text-indigo-600" />
                   Transporter Reliability
                 </CardTitle>
@@ -2152,8 +2231,8 @@ function SupplierDashboard({
 
       </TabsContent>
 
-        <TabsContent value="operations" className="space-y-6">
-          {/* Enhanced Operations Center */}
+      <TabsContent value="operations" className="space-y-6">
+          {/* Operations Center */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-xl transition-all duration-300">
               <CardHeader className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-t-lg">
@@ -2161,14 +2240,19 @@ function SupplierDashboard({
                   <AlertTriangle className="h-5 w-5 text-blue-600" />
                   Disruption Management
                 </CardTitle>
-            </CardHeader>
+              </CardHeader>
               <CardContent className="p-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-800 mb-2">{disruptions.length}</div>
+                  <div className="text-3xl font-bold text-blue-800 mb-2">
+                    {localDisruptions.filter(d => d.status !== 'resolved').length}
+                  </div>
                   <div className="text-sm text-blue-600 mb-4">Active Disruptions</div>
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                  <Button 
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => setActiveTab('disruptions')}
+                  >
                     <AlertTriangle className="h-4 w-4 mr-2" />
-                    Manage Disruptions
+                    View Disruptions
                   </Button>
                 </div>
               </CardContent>
@@ -2229,11 +2313,11 @@ function SupplierDashboard({
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <h4 className="font-semibold text-blue-800 mb-2">Quick Actions</h4>
                   <div className="space-y-2">
-                    <Button size="sm" variant="outline" className="w-full justify-start bg-white hover:bg-blue-50">
+                    <Button size="sm" variant="outline" className="w-full justify-start bg-white hover:bg-blue-50" onClick={() => setActiveTab('disruptions')}>
                       <AlertTriangle className="h-4 w-4 mr-2" />
                       View All Disruptions
                     </Button>
-                    <Button size="sm" variant="outline" className="w-full justify-start bg-white hover:bg-blue-50">
+                    <Button size="sm" variant="outline" className="w-full justify-start bg-white hover:bg-blue-50" onClick={() => setActiveTab('analytics')}>
                       <BarChart3 className="h-4 w-4 mr-2" />
                       Performance Reports
                     </Button>
@@ -2264,125 +2348,235 @@ function SupplierDashboard({
             </CardContent>
           </Card>
         </TabsContent>
+        
+        <TabsContent value="disruptions" className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Active Disruptions</h2>
+              <Badge variant="destructive" className="px-3 py-1 text-sm">
+                {localDisruptions.length} Active
+              </Badge>
+            </div>
+            
+            {localDisruptions.length === 0 ? (
+              <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-2" />
+                <h3 className="text-lg font-medium">No active disruptions</h3>
+                <p className="text-muted-foreground">Your supply chain is running smoothly.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {localDisruptions.map((disruption) => (
+                  <Card key={disruption.id} className="border-l-4 border-red-500 bg-red-50/50">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg text-red-900">{disruption.type}</CardTitle>
+                          <CardDescription className="text-red-700">
+                            Shipment: {disruption.shipmentId} • {disruption.location}
+                          </CardDescription>
+                        </div>
+                        <Badge 
+                          variant={disruption.severity === 'high' ? 'destructive' : 'secondary'}
+                          className="ml-2"
+                        >
+                          {disruption.severity.toUpperCase()}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="mb-4 text-red-800">{disruption.description}</p>
+                      <div className="flex items-center text-sm text-red-700 mb-4">
+                        <Clock className="h-4 w-4 mr-1" />
+                        <span>Detected: {new Date(disruption.timestamp).toLocaleString()}</span>
+                        <span className="mx-2">•</span>
+                        <AlertTriangle className="h-4 w-4 mr-1" />
+                        <span>Estimated delay: {disruption.delay}</span>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleReroute(disruption)}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Reroute Shipment
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleUpdateCustomer(disruption)}
+                        >
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Update Customer
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDisruptionAction(disruption.id, 'escalate')}
+                        >
+                          <AlertTriangle className="h-4 w-4 mr-2" />
+                          Escalate
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDisruptionAction(disruption.id, 'resolve')}
+                          className="ml-auto"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Mark as Resolved
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
           {/* Enhanced Analytics Charts */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2">
             <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-blue-100">
               <CardHeader className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-t-lg">
                 <CardTitle className="text-lg font-bold text-blue-800 flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-blue-600" />
+                  <Package className="h-5 w-5 text-blue-600" />
                   Shipment Mode Split
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <ChartContainer id="supplier-pie" config={{}} className="aspect-[4/3]">
+                <ChartContainer id="supplier-pie" config={{}} className="aspect-square h-[300px]">
                   <PieChart>
-                    <Pie data={supplierModeSplit} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80}>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Pie 
+                      data={supplierModeSplit} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      innerRadius={60}
+                      labelLine={false}
+                      label={renderCustomizedLabel}
+                    >
                       {supplierModeSplit.map((e, i) => (
                         <Cell key={i} fill={e.color} />
                       ))}
                     </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
                 </ChartContainer>
               </CardContent>
             </Card>
-
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-green-100">
-              <CardHeader className="bg-gradient-to-r from-green-100 to-green-200 rounded-t-lg">
-                <CardTitle className="text-lg font-bold text-green-800 flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                  Avg Cost per Shipment ($k)
+            
+            <Card className="shadow-lg border-0 bg-gradient-to-br from-orange-50 to-yellow-50">
+              <CardHeader className="bg-gradient-to-r from-orange-100 to-yellow-100 rounded-t-lg">
+                <CardTitle className="text-lg font-bold text-orange-800 flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-orange-600" />
+                  Cost Breakdown
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <ChartContainer id="supplier-bar" config={{}} className="aspect-[4/3]">
-                  <BarChart data={supplierMonthlyCosts}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Bar dataKey="cost" fill="#22c55e" radius={[6,6,0,0]} />
+                <ChartContainer id="cost-breakdown-pie" config={{}} className="aspect-square h-[300px]">
+                  <PieChart>
                     <ChartTooltip content={<ChartTooltipContent />} />
-                  </BarChart>
+                    <Pie 
+                      data={costBreakdownData} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      outerRadius={80}
+                      labelLine={false}
+                      label={renderCustomizedLabel}
+                    >
+                      {costBreakdownData.map((e, i) => (
+                        <Cell key={i} fill={e.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
                 </ChartContainer>
               </CardContent>
             </Card>
+          </div>
 
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-50 to-purple-100">
-              <CardHeader className="bg-gradient-to-r from-purple-100 to-purple-200 rounded-t-lg">
-                <CardTitle className="text-lg font-bold text-purple-800 flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-purple-600" />
-                  On-Time Delivery Rate
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <ChartContainer id="supplier-line" config={{}} className="aspect-[4/3]">
-                  <LineChart data={supplierOnTimeSeries}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis domain={[80,100]} />
-                    <Line type="monotone" dataKey="rate" stroke="#0ea5e9" strokeWidth={2} dot={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </LineChart>
-                </ChartContainer>
-        </CardContent>
-      </Card>
-    </div>
-
-          {/* Additional Analytics Cards */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-orange-50 to-red-50">
-              <CardHeader className="bg-gradient-to-r from-orange-100 to-red-100 rounded-t-lg">
-                <CardTitle className="text-xl font-bold text-orange-800 flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-orange-600" />
-                  Risk Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-green-100">
+            <CardHeader className="bg-gradient-to-r from-green-100 to-green-200 rounded-t-lg">
+              <CardTitle className="text-lg font-bold text-green-800 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-green-600" />
+                Monthly Costs vs Carbon Footprint
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ChartContainer id="supplier-bar" config={{}} className="h-[300px] w-full">
+                <BarChart data={supplierMonthlyCosts}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="month" />
+                  <YAxis yAxisId="left" stroke="#16a34a" />
+                  <YAxis yAxisId="right" orientation="right" stroke="#6b7280" />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar yAxisId="left" dataKey="cost" fill="#22c55e" radius={[4, 4, 0, 0]} name="Cost ($k)" />
+                  <Line yAxisId="right" type="monotone" dataKey="carbon" stroke="#4b5563" strokeWidth={2} name="Carbon (t CO₂)" />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-50 to-purple-100">
+            <CardHeader className="bg-gradient-to-r from-purple-100 to-purple-200 rounded-t-lg">
+              <CardTitle className="text-lg font-bold text-purple-800 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-purple-600" />
+                On-Time Delivery vs Disruptions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ChartContainer id="supplier-line" config={{}} className="h-[300px] w-full">
+                <LineChart data={supplierOnTimeSeries}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis yAxisId="left" domain={[85, 100]} stroke="#8b5cf6" />
+                  <YAxis yAxisId="right" orientation="right" stroke="#ef4444" />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line yAxisId="left" type="monotone" dataKey="rate" stroke="#8b5cf6" strokeWidth={2} name="On-Time Rate (%)" />
+                  <Line yAxisId="right" type="monotone" dataKey="disruptions" stroke="#ef4444" strokeDasharray="5 5" name="Disruptions" />
+                </LineChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-slate-50 to-white">
+            <CardHeader className="bg-gradient-to-r from-slate-100 to-slate-200 rounded-t-lg">
+              <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <Users className="h-5 w-5 text-slate-600" />
+                Carrier Performance Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-700 font-medium">High Risk Routes</span>
-                    <Badge variant="destructive">3</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-700 font-medium">Medium Risk Routes</span>
-                    <Badge variant="secondary">5</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-700 font-medium">Low Risk Routes</span>
-                    <Badge variant="outline" className="text-green-600 border-green-300">12</Badge>
-                  </div>
+                  <h3 className="font-semibold">On-Time Percentage by Carrier</h3>
+                  <ChartContainer config={{}} className="h-[250px] w-full">
+                    <BarChart data={carrierPerformanceData} layout="vertical" margin={{ left: 20 }}>
+                      <CartesianGrid horizontal={false} />
+                      <XAxis type="number" domain={[80, 100]} />
+                      <YAxis dataKey="name" type="category" />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="onTime" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ChartContainer>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-emerald-50 to-green-50">
-              <CardHeader className="bg-gradient-to-r from-emerald-100 to-green-100 rounded-t-lg">
-                <CardTitle className="text-xl font-bold text-emerald-800 flex items-center gap-2">
-                  <Leaf className="h-5 w-5 text-emerald-600" />
-                  Sustainability Metrics
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-emerald-700 font-medium">Carbon Reduction</span>
-                    <span className="text-emerald-600 font-bold">-12%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-emerald-700 font-medium">EV Shipments</span>
-                    <span className="text-emerald-600 font-bold">25%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-emerald-700 font-medium">Green Score</span>
-                    <span className="text-emerald-600 font-bold">B+</span>
-                  </div>
+                  <h3 className="font-semibold">Average Cost per Shipment ($k)</h3>
+                  <ChartContainer config={{}} className="h-[250px] w-full">
+                    <BarChart data={carrierPerformanceData} layout="vertical" margin={{ left: 20 }}>
+                      <CartesianGrid horizontal={false} />
+                      <XAxis type="number" />
+                      <YAxis dataKey="name" type="category" />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="cost" fill="#16a34a" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ChartContainer>
                 </div>
-        </CardContent>
-      </Card>
-    </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
@@ -2450,7 +2644,7 @@ function SupplierDashboard({
   );
 }
 
-function TransporterDashboard({ 
+function TransporterDashboard({
   onRequestAction, 
   onShipmentStatusUpdate, 
   shipments = [] 
@@ -2506,7 +2700,7 @@ function TransporterDashboard({
       driver: "John Smith",
       isEV: false,
       fuelEfficiency: "6.5 MPG",
-      lastMaintenance: "2024-01-15",
+      lastMaintenance: "2025-01-15",
     },
     {
       id: "TRK-002",
@@ -2518,7 +2712,7 @@ function TransporterDashboard({
       driver: "Sarah Johnson",
       isEV: true,
       fuelEfficiency: "1.7 kWh/mile",
-      lastMaintenance: "2024-02-01",
+      lastMaintenance: "2025-02-01",
     },
     {
       id: "SHP-001",
@@ -2530,7 +2724,7 @@ function TransporterDashboard({
       driver: "Captain Rodriguez",
       isEV: false,
       fuelEfficiency: "0.15 gal/TEU-mile",
-      lastMaintenance: "2024-01-20",
+      lastMaintenance: "2025-01-20",
     },
     {
       id: "AIR-001",
@@ -2542,7 +2736,7 @@ function TransporterDashboard({
       driver: "Pilot Williams",
       isEV: false,
       fuelEfficiency: "4.2 gal/mile",
-      lastMaintenance: "2024-02-10",
+      lastMaintenance: "2025-02-10",
     },
   ]);
 
@@ -2554,8 +2748,8 @@ function TransporterDashboard({
       priority: "High",
       weight: "45,000 lbs",
       estimatedRevenue: 2450,
-      pickupDate: "2024-02-15",
-      deliveryDate: "2024-02-18",
+      pickupDate: "2025-02-15",
+      deliveryDate: "2025-02-18",
     },
     {
       id: "REQ002",
@@ -2564,8 +2758,8 @@ function TransporterDashboard({
       priority: "Medium",
       weight: "32,000 lbs",
       estimatedRevenue: 1850,
-      pickupDate: "2024-02-16",
-      deliveryDate: "2024-02-20",
+      pickupDate: "2025-02-16",
+      deliveryDate: "2025-02-20",
     },
     {
       id: "REQ003",
@@ -2574,8 +2768,8 @@ function TransporterDashboard({
       priority: "Low",
       weight: "28,000 lbs",
       estimatedRevenue: 1650,
-      pickupDate: "2024-02-17",
-      deliveryDate: "2024-02-22",
+      pickupDate: "2025-02-17",
+      deliveryDate: "2025-02-22",
     },
   ]);
 
@@ -3638,25 +3832,25 @@ function CustomerDashboard({
       progress: 65,
       eta: "18 hours",
       route: "NYC → Your Location",
-      estimatedDelivery: "2024-02-16 14:30",
+      estimatedDelivery: "2025-02-16 14:30",
       trackingUpdates: [
         {
-          time: "2024-02-14 09:00",
+          time: "2025-02-14 09:00",
           status: "Dispatched from NYC",
           location: "New York, NY",
         },
         {
-          time: "2024-02-14 15:30",
+          time: "2025-02-14 15:30",
           status: "In transit via I-80",
           location: "Newark, NJ",
         },
         {
-          time: "2024-02-15 08:00",
+          time: "2025-02-15 08:00",
           status: "Reached checkpoint",
           location: "Pittsburgh, PA",
         },
         {
-          time: "2024-02-15 14:00",
+          time: "2025-02-15 14:00",
           status: "Currently en route",
           location: "Columbus, OH",
         },
@@ -3673,15 +3867,15 @@ function CustomerDashboard({
       progress: 25,
       eta: "2 days",
       route: "CHI → Your Location",
-      estimatedDelivery: "2024-02-18 10:00",
+      estimatedDelivery: "2025-02-18 10:00",
       trackingUpdates: [
         {
-          time: "2024-02-15 07:00",
+          time: "2025-02-15 07:00",
           status: "Dispatched from Chicago",
           location: "Chicago, IL",
         },
         {
-          time: "2024-02-15 12:00",
+          time: "2025-02-15 12:00",
           status: "Loading complete",
           location: "Chicago, IL",
         },
@@ -3698,15 +3892,15 @@ function CustomerDashboard({
       progress: 10,
       eta: "5 days",
       route: "SEA → Your Location",
-      estimatedDelivery: "2024-02-20 16:00",
+      estimatedDelivery: "2025-02-20 16:00",
       trackingUpdates: [
         {
-          time: "2024-02-15 09:00",
+          time: "2025-02-15 09:00",
           status: "Order confirmed",
           location: "Seattle, WA",
         },
         {
-          time: "2024-02-15 11:00",
+          time: "2025-02-15 11:00",
           status: "Preparing for dispatch",
           location: "Seattle, WA",
         },
@@ -3722,7 +3916,7 @@ function CustomerDashboard({
       id: "SH002",
       supplier: "TechCorp Inc.",
       transporter: "FastTrack Logistics",
-      deliveredDate: "2024-02-10",
+      deliveredDate: "2025-02-10",
       rating: null,
       deliveryType: "fast",
       onTime: true,
@@ -3731,7 +3925,7 @@ function CustomerDashboard({
       id: "SH003",
       supplier: "Global Retail",
       transporter: "Green Transport",
-      deliveredDate: "2024-02-08",
+      deliveredDate: "2025-02-08",
       rating: 5,
       deliveryType: "eco",
       onTime: true,

@@ -116,18 +116,18 @@ export function InteractiveMap({
   return (
     <Card className={`relative overflow-hidden ${className}`}>
       {/* Map Container */}
-      <div className="relative h-96 bg-gradient-to-br from-blue-50 to-green-50 border-2 border-dashed border-gray-200">
-        {/* Map Grid Background */}
-        <div className="absolute inset-0 opacity-20">
-          <svg width="100%" height="100%">
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#94a3b8" strokeWidth="1" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
+      <div className="relative h-96 border-2 border-gray-200 overflow-hidden">
+        {/* Map Background Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center transition-all duration-300"
+          style={{
+            backgroundImage: 'url(/images/map.png)',
+            transform: `scale(${1 + (zoom - 6) * 0.1})`,
+            transformOrigin: 'center',
+            width: '100%',
+            height: '100%'
+          }}
+        ></div>
 
         {/* Routes */}
         {routes.map((route, index) => (
